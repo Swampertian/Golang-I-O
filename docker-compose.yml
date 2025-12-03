@@ -1,0 +1,18 @@
+services:
+  fire_go:
+    container_name: fire_go
+    build:
+      context: ./Golang-I-O
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      DATABASE_URL: "postgres://cigma_user:cigma_password@psql_local_dev:5432/cigma_mapas_base_de_dados"
+    networks:
+      - cigma_network
+    ports:
+      - "8081:8081"
+
+# Redes
+networks:
+  cigma_network:
+    external: true
