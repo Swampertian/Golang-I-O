@@ -9,9 +9,20 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"unsafe"
 
 	"log/slog"
 )
+
+func logMemoryUsage(vars map[string]interface{}) {
+	for name, value := range vars {
+		size := unsafe.Sizeof(value)
+		logger.Log.Debug("memory_usage",
+			slog.String("variable", name),
+			slog.Uint64("bytes", uint64(size)),
+		)
+	}
+}
 
 type FireResponse struct {
 	ID             int64           `json:"id"`
@@ -55,6 +66,15 @@ func GetFireIntersectFiltered(w http.ResponseWriter, r *http.Request) {
 		params = append(params, codigoStr)
 	}
 
+	// Log de memória dos parâmetros iniciais
+	logMemoryUsage(map[string]interface{}{
+		"dataInicioStr": dataInicioStr,
+		"dataFimStr":    dataFimStr,
+		"codigoStr":     codigoStr,
+		"where_slice":   where,
+		"params_slice":  params,
+	})
+
 	whereClause := ""
 	if len(where) > 0 {
 		whereClause = "WHERE " + joinWhere(where)
@@ -71,6 +91,12 @@ func GetFireIntersectFiltered(w http.ResponseWriter, r *http.Request) {
 			geom
 		FROM fire_intersect
 		` + whereClause
+
+	// Log de memória após construção da query
+	logMemoryUsage(map[string]interface{}{
+		"whereClause": whereClause,
+		"query":       query,
+	})
 
 	// ----------------------------
 	// Tempo da consulta SQL
@@ -118,6 +144,16 @@ func GetFireIntersectFiltered(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		logMemoryUsage(map[string]interface{}{
+			"id":             id,
+			"typeField":      typeField,
+			"municipalityID": municipalityID,
+			"year":           year,
+			"month":          month,
+			"areaHa":         areaHa,
+			"geomWKB":        geomWKB,
+		})
+
 		// Tempo de conversão geométrica
 		convStart := time.Now()
 		geojson, err := utils.EWKBHexToGeoJSON(geomWKB)
@@ -148,9 +184,6 @@ func GetFireIntersectFiltered(w http.ResponseWriter, r *http.Request) {
 		slog.Int64("duration_ms", conversionTime.Milliseconds()),
 	)
 
-	// ----------------------------
-	// Serialização JSON final
-	// ----------------------------
 	serStart := time.Now()
 	payload, err := json.Marshal(list)
 	serDuration := time.Since(serStart)
@@ -161,17 +194,15 @@ func GetFireIntersectFiltered(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ----------------------------
-	// Envio da resposta
-	// ----------------------------
+	logMemoryUsage(map[string]interface{}{
+		"list_slice": list,
+		"payload":    payload,
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(payload)
 
-	// ----------------------------
-	// Log final da requisição
-	// ----------------------------
 	totalDuration := time.Since(totalStart)
-
 	logger.Log.Info("request_complete",
 		slog.String("endpoint", "/fire_intersect"),
 		slog.Int("records", len(list)),
