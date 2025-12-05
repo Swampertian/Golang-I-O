@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fire-go/internal/db"
+	"fire-go/internal/logger"
 	"fire-go/internal/utils"
 	"net/http"
 	"strconv"
 	"time"
+
+	"log/slog"
 )
 
 type FireResponse struct {
@@ -21,8 +24,13 @@ type FireResponse struct {
 }
 
 func GetFireIntersectFiltered(w http.ResponseWriter, r *http.Request) {
+	totalStart := time.Now()
+
 	ctx := context.Background()
 
+	// ----------------------------
+	// Extração e parsing dos filtros
+	// ----------------------------
 	dataInicioStr := r.URL.Query().Get("dataInicio")
 	dataFimStr := r.URL.Query().Get("dataFim")
 	codigoStr := r.URL.Query().Get("codigo")
@@ -64,14 +72,34 @@ func GetFireIntersectFiltered(w http.ResponseWriter, r *http.Request) {
 		FROM fire_intersect
 		` + whereClause
 
+	// ----------------------------
+	// Tempo da consulta SQL
+	// ----------------------------
+	dbStart := time.Now()
 	rows, err := db.Pool.Query(ctx, query, params...)
+	dbDuration := time.Since(dbStart)
+
 	if err != nil {
+		logger.Log.Error("db_error",
+			slog.String("error", err.Error()),
+			slog.String("query", query),
+		)
 		http.Error(w, "Erro ao executar query: "+err.Error(), 500)
 		return
 	}
 	defer rows.Close()
 
+	logger.Log.Info("db_query_execution",
+		slog.String("query", query),
+		slog.Int("params_count", len(params)),
+		slog.Int64("duration_ms", dbDuration.Milliseconds()),
+	)
+
+	// ----------------------------
+	// Leitura das linhas + tempo de conversão EWKB → GeoJSON
+	// ----------------------------
 	var list []FireResponse
+	var conversionTime time.Duration
 
 	for rows.Next() {
 		var (
@@ -84,23 +112,22 @@ func GetFireIntersectFiltered(w http.ResponseWriter, r *http.Request) {
 			geomWKB        string
 		)
 
-		err := rows.Scan(
-			&id,
-			&typeField,
-			&municipalityID,
-			&year,
-			&month,
-			&areaHa,
-			&geomWKB,
-		)
-
-		if err != nil {
+		if err := rows.Scan(&id, &typeField, &municipalityID, &year, &month, &areaHa, &geomWKB); err != nil {
+			logger.Log.Error("row_scan_error", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
 
+		// Tempo de conversão geométrica
+		convStart := time.Now()
 		geojson, err := utils.EWKBHexToGeoJSON(geomWKB)
+		convDuration := time.Since(convStart)
+		conversionTime += convDuration
+
 		if err != nil {
+			logger.Log.Error("geom_conversion_error",
+				slog.String("error", err.Error()),
+			)
 			http.Error(w, "Erro convertendo geom: "+err.Error(), 500)
 			return
 		}
@@ -116,8 +143,44 @@ func GetFireIntersectFiltered(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	logger.Log.Info("geom_conversion_summary",
+		slog.Int("records", len(list)),
+		slog.Int64("duration_ms", conversionTime.Milliseconds()),
+	)
+
+	// ----------------------------
+	// Serialização JSON final
+	// ----------------------------
+	serStart := time.Now()
+	payload, err := json.Marshal(list)
+	serDuration := time.Since(serStart)
+
+	if err != nil {
+		logger.Log.Error("serialization_error", "error", err)
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	// ----------------------------
+	// Envio da resposta
+	// ----------------------------
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(list)
+	w.Write(payload)
+
+	// ----------------------------
+	// Log final da requisição
+	// ----------------------------
+	totalDuration := time.Since(totalStart)
+
+	logger.Log.Info("request_complete",
+		slog.String("endpoint", "/fire_intersect"),
+		slog.Int("records", len(list)),
+		slog.Int("response_bytes", len(payload)),
+		slog.Int64("db_ms", dbDuration.Milliseconds()),
+		slog.Int64("geom_conversion_ms", conversionTime.Milliseconds()),
+		slog.Int64("serialization_ms", serDuration.Milliseconds()),
+		slog.Int64("total_ms", totalDuration.Milliseconds()),
+	)
 }
 
 func joinWhere(parts []string) string {
