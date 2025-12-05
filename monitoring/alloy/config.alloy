@@ -1,0 +1,15 @@
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+loki.source.file "app_logs" {
+  targets = [
+    {
+      __path__ = "/var/log/app/*.log",
+    },
+  ]
+
+  forward_to = [loki.write.default.receiver]
+}
