@@ -2,17 +2,52 @@ services:
   fire_go:
     container_name: fire_go
     build:
-      context: ./Golang-I-O
+      context: .
       dockerfile: Dockerfile
     restart: always
+    volumes:
+      - ./logs:/var/log/app
     environment:
       DATABASE_URL: "postgres://cigma_user:cigma_password@psql_local_dev:5432/cigma_mapas_base_de_dados"
     networks:
       - cigma_network
     ports:
       - "8081:8081"
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: loki
+    command: -config.file=/etc/loki/config.yaml
+    volumes:
+      - ./monitoring/loki/config.yaml:/etc/loki/config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - cigma_network
 
-# Redes
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - cigma_network
+    volumes:
+       - ./grafana:/var/lib/grafana
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    command: run /etc/alloy/config.alloy
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy
+      - ./logs:/var/log/app
+    depends_on:
+      - loki
+    networks:
+      - cigma_network
+
 networks:
   cigma_network:
     external: true
