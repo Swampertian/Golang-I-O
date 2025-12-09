@@ -22,7 +22,6 @@ func RequestLogger(next http.Handler) http.Handler {
 
 		start := time.Now()
 
-		// ResponseWriter modificado para capturar status
 		sw := &statusResponseWriter{
 			ResponseWriter: w,
 			status:         200,

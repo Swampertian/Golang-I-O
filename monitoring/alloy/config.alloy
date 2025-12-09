@@ -19,12 +19,24 @@ loki.process "labels" {
   stage.regex {
     expression = "level=(?P<level>\\w+).*?msg=\\\"(?P<msg>[^\\\"]+)\\\".*?(service=(?P<service>\\w+))?"
   }
-
+  stage.json {
+    expressions = {
+      msg                = "msg",
+      endpoint           = "endpoint",
+      records            = "records",
+      response_bytes     = "response_bytes",
+      db_ms              = "db_ms",
+      geom_conversion_ms = "geom_conversion_ms",
+      serialization_ms   = "serialization_ms",
+      total_ms           = "total_ms",
+    }
+  }
   stage.labels {
     values = {
       level   = "level",
       msg     = "msg",
       service = "service",
+      msg = "msg",
     }
   }
 

@@ -16,7 +16,6 @@ func main() {
 
 	db.Connect()
 	logger.Init()
-
 	logger.Log.Info("server_starting", "port", 8081)
 
 	r := chi.NewRouter()
