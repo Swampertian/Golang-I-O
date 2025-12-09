@@ -32,8 +32,5 @@ COPY --from=builder /app/fire-go .
 # Porta da API
 EXPOSE 8081
 
-# Healthcheck opcional
-HEALTHCHECK --interval=10s --timeout=3s \
-    CMD wget -qO- http://localhost:8081/health || exit 1
 
 CMD ["./fire-go"]
