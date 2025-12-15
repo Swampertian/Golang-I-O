@@ -1,0 +1,21 @@
+scalar JSON
+
+type Query {
+  deforestation(id: ID!): Deforestation
+  deforestations: [Deforestation!]!
+  fire: [Fire!]!
+}
+
+type Deforestation {
+  id: ID!
+}
+
+type Fire {
+  id: ID!
+  type: String!
+  MunicipalityID: Int!
+  Year: String!
+  Month: String!
+  AreaHa: String!
+  Geom: JSON
+}
