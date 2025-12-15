@@ -98,9 +98,6 @@ func GetFireIntersectFiltered(w http.ResponseWriter, r *http.Request) {
 		"query":       query,
 	})
 
-	// ----------------------------
-	// Tempo da consulta SQL
-	// ----------------------------
 	dbStart := time.Now()
 	rows, err := db.Pool.Query(ctx, query, params...)
 	dbDuration := time.Since(dbStart)
@@ -121,9 +118,6 @@ func GetFireIntersectFiltered(w http.ResponseWriter, r *http.Request) {
 		slog.Int64("duration_ms", dbDuration.Milliseconds()),
 	)
 
-	// ----------------------------
-	// Leitura das linhas + tempo de conversão EWKB → GeoJSON
-	// ----------------------------
 	var list []FireResponse
 	var conversionTime time.Duration
 
