@@ -1,17 +1,21 @@
+## Executando:
+ 1. Suba um container externo com o banco de dados configurado
+ 
+ 2. docker compose up --build -d
 
-Benchmark para quantidade massivas de dados + transformações geospaciais usando Golang:
+ 3. Acesse 
+    - localhost:8081/fire_intersect -> API Rest
+    - localhost:8081/graphql -> API Graphql e faça a query
 
-O Objetivo principal desse repósitorio é analisar logs + métricas do uso da linguagem Go na raspagem e controle de registro de variáveis ao transformar muitos dados em um API.
 
-Para acessar os resultados, você pode alterar as configurações do alloy para escrever em um arquivo local ao invés de escrever dentro do container.
 
-Tecnologias:
+#### Tecnologias:
   - PostgresSQL (Banco Relacional)
   - Docker
-  - Golang 
+  - Go
   - Pipeline Grafana alloy + loki + grafana
 
-Principais dependências: 
+#### Principais dependências: 
   - Gochi 
   - Geom
   - Slog
